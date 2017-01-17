@@ -1,0 +1,18 @@
+/**
+ * Created by macdja38 on 2017-01-13.
+ */
+
+module.exports = {
+  DISPATCH: 0,
+  HEARTBEAT: 1,
+  IDENTIFY: 2,
+  STATUS_UPDATE: 3,
+  REQUEST_GUILD: 4,
+  REMOVE_GUILD: 5,
+  RESUME: 6,
+  RECONNECT: 7,
+  REQUEST_MEMBERS: 8,
+  INVALID_SESSION: 9,
+  HELLO: 10,
+  HEARTBEAT_ACK: 11,
+};
