@@ -33,14 +33,13 @@ app.use(function (req, res) {
   res.send({ msg: "hello" });
 });
 
-let clientId = "38383838338";
-
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 class Client {
   constructor(ws, id) {
     this.ws = ws;
+    this.id = id;
     this.incomingMessage = this.incomingMessage.bind(this);
     this.send = this.send.bind(this);
     this.send({op: OpCodes.HELLO,
@@ -61,10 +60,10 @@ class Client {
         });
         break;
       case OpCodes.REQUEST_GUILD:
-        console.log(JSON.stringify(contents.d.guilds.map(g => `${clientId}|${g}`)));
+        console.log(JSON.stringify(contents.d.guilds.map(g => `${this.id}|${g}`)));
         r
           .table('settings')
-          .getAll(...contents.d.guilds.map(g => `${clientId}|${g}`), { index: 'id' })
+          .getAll(...contents.d.guilds.map(g => `${this.id}|${g}`), { index: 'id' })
           .changes({
             squash: true,
             includeInitial: true,
@@ -81,6 +80,10 @@ class Client {
               });
             })
           });
+        break;
+      case OpCodes.UPDATE_CONFIG:
+        contents.d.data.id = `${this.id}|${contents.d.id}`;
+        r.table('settingsMap').insert(contents.d.data, {conflict: contents.d.o}).run();
         break;
     }
   }
@@ -109,6 +112,6 @@ function handleConnection(ws) {
   }
 }
 
-server.listen(8089, function listening() {
+server.listen(auth.port, function listening() {
   console.log('Listening on %d', server.address().port);
 });
