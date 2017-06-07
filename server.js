@@ -40,6 +40,7 @@ class Client {
   constructor(ws, id) {
     this.ws = ws;
     this.id = id;
+    this.guildSet = false;
     this.incomingMessage = this.incomingMessage.bind(this);
     this.send = this.send.bind(this);
     this.send({op: OpCodes.HELLO,
@@ -60,17 +61,42 @@ class Client {
         });
         break;
       case OpCodes.REQUEST_GUILD:
-        console.log(JSON.stringify(contents.d.guilds.map(g => `${this.id}|${g}`)));
-        r
-          .table('settings')
-          .getAll(...contents.d.guilds.map(g => `${this.id}|${g}`), { index: 'id' })
+        let newGuildList = contents.d.guilds.map(g => `${this.id}|${g}`);
+        console.log(JSON.stringify(newGuildList));
+        if (!this.guildSet) {
+          this.guildSet = new Set(newGuildList)
+        } else {
+          newGuildList.forEach(guildIdentifier => {
+            this.guildSet.add(guildIdentifier);
+          })
+        }
+        let settingsTable = r.table('settings');
+        settingsTable.getAll(...newGuildList).run().then((values) => {
+            values.forEach((value) => {
+                value.id = value.id.split("|")[1];
+                this.send({
+                    op: OpCodes.DISPATCH,
+                    t: "GUILD_CONFIG_UPDATE",
+                    d: value ,
+                });
+            })
+        });
+        settingsTable
+          .getAll(...this.guildSet, { index: 'id' })
           .changes({
             squash: true,
-            includeInitial: true,
           })
           .run((err, cursor) => {
+          console.log(err);
+            if (this.cursor) {
+              this.cursor.close();
+            }
+            this.cursor = cursor;
             cursor.each((error, value) => {
-              console.log(value.new_val);
+              if (error) {
+                console.error(error);
+                return;
+              }
               const parsedData = value.new_val;
               parsedData.id = parsedData.id.split("|")[1];
               this.send({
