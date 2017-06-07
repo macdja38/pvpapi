@@ -87,7 +87,10 @@ class Client {
             squash: true,
           })
           .run((err, cursor) => {
-          console.log(err);
+            if (err) {
+              console.log(err);
+              return;
+            }
             if (this.cursor) {
               this.cursor.close();
             }
