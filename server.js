@@ -38,14 +38,12 @@ app.get('/v1/server/:id/', (req, res) => {
   if (!clientID) {
     res.status(400).send("id header not present")
   }
-  console.log(req.headers, req.params.id);
   r.table("settingsBot").get(clientID).run().then((settings) => {
     if (settings === null || settings.token !== req.headers.token) {
       return res.rejectUnauthorized();
     }
     let possibleClients = clients.filter(c => c.id === clientID).filter(c => c.guildSet && c.guildSet.has(clientID + "|" + req.params.id));
     if (possibleClients.length > 0) {
-      console.log(possibleClients);
       let client = possibleClients[0];
       let nonce = Math.random()*100000;
       client.send({
@@ -81,6 +79,7 @@ class Client {
     this.id = id;
     this.guildSet = false;
     this.incomingMessage = this.incomingMessage.bind(this);
+    this.onClose = this.onClose.bind(this);
     this.send = this.send.bind(this);
     this.send({
       op: OpCodes.HELLO,
@@ -89,11 +88,17 @@ class Client {
       }
     });
     ws.on("message", this.incomingMessage);
+    ws.once("close", this.onClose);
+  }
+
+  onClose() {
+    this.ws.removeListener("message", this.incomingMessage);
+    let index = clients.indexOf(this);
+    clients.splice(index, 1);
   }
 
   incomingMessage(message) {
     let contents = JSON.parse(message);
-    console.log('received ', contents, message);
     switch (contents.op) {
       case OpCodes.IDENTIFY:
         this.send({
@@ -103,7 +108,6 @@ class Client {
         break;
       case OpCodes.REQUEST_GUILD:
         let newGuildList = contents.d.guilds.map(g => `${this.id}|${g}`);
-        console.log(JSON.stringify(newGuildList));
         if (!this.guildSet) {
           this.guildSet = new Set(newGuildList)
         } else {
@@ -156,7 +160,6 @@ class Client {
         r.table('settingsMap').insert(contents.d.data, {conflict: contents.d.o}).run();
         break;
       case OpCodes.RESPONSE_CHANNELS_USERS_AND_ROLES:
-        console.log(contents);
         if (currentRequets.hasOwnProperty(contents.nonce)) {
           currentRequets[contents.nonce].resolve(contents.d);
           delete currentRequets[contents.nonce];

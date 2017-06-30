@@ -18,8 +18,8 @@
   },
   "homepage": "https://github.com/macdja38/pvpapi#readme",
   "dependencies": {
-    "express": "^4.14.1",
-    "rethinkdbdash": "^2.3.27",
+    "express": "^4.15.3",
+    "rethinkdbdash": "^2.3.29",
     "utf-8-validate": "^2.0.0",
     "ws": "^2.1.0"
   }
