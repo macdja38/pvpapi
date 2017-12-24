@@ -10,7 +10,8 @@ const OpCodes = require('./OpCodes');
 
 const auth = require('./config/auth.json');
 
-const r = require('rethinkdbdash')(auth.rethinkdb);
+const r = require("./db");
+const accessChecks = require("./accessChecks");
 
 let clients = [];
 
@@ -33,10 +34,20 @@ const app = express();
 
 let currentRequets = {};
 
+app.get('/v1/settingsMap/:id/', accessChecks.checkPvPClientAccessingOwnDataIDInParams, (req, res) => {
+  r.table("settingsMap").get(`${req.params.id}|*`).then(settings => {
+    if (settings == null) {
+      res.status(403).send("Client config not found")
+    } else {
+      res.json(settings);
+    }
+  })
+});
+
 app.get('/v1/server/:id/', (req, res) => {
   let clientID = req.headers.id;
   if (!clientID) {
-    res.status(400).send("id header not present")
+    res.status(400).send("id header not present, please supply the bot id.")
   }
   r.table("settingsBot").get(clientID).run().then((settings) => {
     if (settings === null || settings.token !== req.headers.token) {
