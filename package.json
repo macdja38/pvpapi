@@ -1,6 +1,6 @@
 {
   "name": "pvpapi",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "api server for pvpcraft universal config system",
   "main": "server.js",
   "scripts": {
