@@ -193,8 +193,7 @@ class Client {
 
 wss.on('connection', handleConnection);
 
-function handleConnection(ws) {
-  let headers = ws.upgradeReq.headers;
+function handleConnection(ws, { headers }) {
   console.log('connection?', headers);
   if (headers.token && headers.id) {
     r.table("settingsBot").get(headers.id).then((settings) => {
