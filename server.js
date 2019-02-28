@@ -6,6 +6,8 @@ const http = require('http');
 const url = require('url');
 const WebSocket = require('ws');
 
+const HEARTBEAT_INTERVAL = 15000;
+
 const OpCodes = require('./OpCodes');
 
 const auth = require('./config/auth.json');
@@ -33,6 +35,13 @@ ensure(r, "settings");
 const app = express();
 
 let currentRequets = {};
+
+app.get('/v1/clients', (req, res) => {
+  res.json(clients.map((client) => ({
+    id: client.id,
+    guilds: Array.from(client.guildSet),
+  })))
+});
 
 app.get('/v1/settingsMap/:id/', accessChecks.checkPvPClientAccessingOwnDataIDInParams, (req, res) => {
   r.table("settingsMap").get(`${req.params.id}|*`).then(settings => {
@@ -95,15 +104,29 @@ class Client {
     this.send({
       op: OpCodes.HELLO,
       d: {
-        heartbeat_interval: 15000,
+        heartbeat_interval: HEARTBEAT_INTERVAL,
       },
     });
     ws.on("message", this.incomingMessage);
     ws.once("close", this.onClose);
+
+    this.startHeartbeatChecker();
+
+  }
+
+  startHeartbeatChecker() {
+    this.heartbeatVerificationInterval = setInterval(() => {
+      if (this.heartbeatRecieved < (Date.now() - (HEARTBEAT_INTERVAL * 2) - 1000)) {
+         this.ws.terminate();
+      }
+    }, HEARTBEAT_INTERVAL)
   }
 
   onClose() {
     this.ws.removeListener("message", this.incomingMessage);
+    if (this.heartbeatVerificationInterval) {
+      clearInterval(this.heartbeatVerificationInterval);
+    }
     let index = clients.indexOf(this);
     clients.splice(index, 1);
   }
@@ -116,6 +139,15 @@ class Client {
           op: OpCodes.DISPATCH,
           t: "READY",
         });
+        break;
+      }
+      case OpCodes.HEARTBEAT: {
+        console.log('got heartbeat');
+        this.send({
+          op: OpCodes.HEARTBEAT_ACK,
+          d: contents.d,
+        });
+        this.heartbeatRecieved = contents.d;
         break;
       }
       case OpCodes.REMOVE_GUILD: {
@@ -182,6 +214,7 @@ class Client {
           currentRequets[contents.nonce].resolve(contents.d);
           delete currentRequets[contents.nonce];
         }
+        break;
       }
     }
   }
