@@ -22,7 +22,7 @@ function ensure(r, tableName) {
     .do(function (databaseExists) {
       return r.branch(
         databaseExists,
-        {table_created: 0},
+        { table_created: 0 },
         r.tableCreate(tableName),
       );
     }).run();
@@ -69,11 +69,11 @@ app.get('/v1/server/:id/', (req, res) => {
       client.send({
         op: OpCodes.GET_CHANNELS_USERS_AND_ROLES,
         nonce: nonce,
-        d: {id: req.params.id},
+        d: { id: req.params.id },
       });
       (new Promise((resolve, reject) => {
-        currentRequets[nonce] = {resolve, reject}
-      })).then(data => res.json({data})).catch((error) => res.status(500).send(error.toString()));
+        currentRequets[nonce] = { resolve, reject }
+      })).then(data => res.json({ data })).catch((error) => res.status(500).send(error.toString()));
       setTimeout(() => {
         if (currentRequets.hasOwnProperty(nonce)) {
           currentRequets[nonce].reject("Timed out");
@@ -87,11 +87,11 @@ app.get('/v1/server/:id/', (req, res) => {
 });
 
 app.use(function (req, res) {
-  res.send({msg: "hello"});
+  res.send({ msg: "hello" });
 });
 
 const server = http.createServer(app);
-const wss = new WebSocket.Server({server});
+const wss = new WebSocket.Server({ server });
 
 class Client {
   constructor(ws, id) {
@@ -117,7 +117,11 @@ class Client {
   startHeartbeatChecker() {
     this.heartbeatVerificationInterval = setInterval(() => {
       if (this.heartbeatRecieved < (Date.now() - (HEARTBEAT_INTERVAL * 2) - 1000)) {
-         this.ws.terminate();
+        console.log(`Forcefully terminating a websocket connection for id ${this.id} due
+         to missed heartbeat.\n` +
+        `Last heartbeat was at ${this.heartbeatRecieved}, current time is ${Date.now()},\n` +
+        `Threshold is ${Date.now() - (HEARTBEAT_INTERVAL * 2) - 1000}`);
+        this.ws.terminate();
       }
     }, HEARTBEAT_INTERVAL)
   }
@@ -175,7 +179,7 @@ class Client {
           })
         });
         settingsTable
-          .getAll(...this.guildSet, {index: 'id'})
+          .getAll(...this.guildSet, { index: 'id' })
           .changes({
             squash: true,
           })
@@ -206,7 +210,7 @@ class Client {
       }
       case OpCodes.UPDATE_CONFIG: {
         contents.d.data.id = `${this.id}|${contents.d.id}`;
-        r.table('settingsMap').insert(contents.d.data, {conflict: contents.d.o}).run();
+        r.table('settingsMap').insert(contents.d.data, { conflict: contents.d.o }).run();
         break;
       }
       case OpCodes.RESPONSE_CHANNELS_USERS_AND_ROLES: {
@@ -229,6 +233,7 @@ wss.on('connection', handleConnection);
 function handleConnection(ws, { headers }) {
   console.log('connection?', headers);
   if (headers.token && headers.id) {
+    console.log(`${headers.id} Header token and id are present, proceeding.`);
     r.table("settingsBot").get(headers.id).then((settings) => {
       if (settings !== null) {
         if (settings.token === headers.token) {
@@ -237,9 +242,13 @@ function handleConnection(ws, { headers }) {
           return client;
         }
       }
+      console.log(`${headers.id} terminating connection as settings entry could not be found or `
+      `token was wrong.`);
+      console.log(settings);
       ws.terminate(403);
     })
   } else {
+    console.log(`Terminating as headers.id and headers.token were not present.`);
     ws.terminate(403)
   }
 }
