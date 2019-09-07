@@ -117,8 +117,7 @@ class Client {
   startHeartbeatChecker() {
     this.heartbeatVerificationInterval = setInterval(() => {
       if (this.heartbeatRecieved < (Date.now() - (HEARTBEAT_INTERVAL * 2) - 1000)) {
-        console.log(`Forcefully terminating a websocket connection for id ${this.id} due
-         to missed heartbeat.\n` +
+        console.log(`Forcefully terminating a websocket connection for id ${this.id} due to missed heartbeat.\n` +
         `Last heartbeat was at ${this.heartbeatRecieved}, current time is ${Date.now()},\n` +
         `Threshold is ${Date.now() - (HEARTBEAT_INTERVAL * 2) - 1000}`);
         this.ws.terminate();
@@ -133,6 +132,9 @@ class Client {
     }
     let index = clients.indexOf(this);
     clients.splice(index, 1);
+    if (this.cursor) {
+      this.cursor.close();
+    }
   }
 
   incomingMessage(message) {
@@ -242,8 +244,7 @@ function handleConnection(ws, { headers }) {
           return client;
         }
       }
-      console.log(`${headers.id} terminating connection as settings entry could not be found or `
-      `token was wrong.`);
+      console.log(`${headers.id} terminating connection as settings entry could not be found or token was wrong.`);
       console.log(settings);
       ws.terminate(403);
     })
